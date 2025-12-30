@@ -332,41 +332,57 @@ class CodeGenerationAgent(BaseStrictAgent):
         self.phase = AgentPhase.CODE_GENERATION
 
     def validate_preconditions(self, context: AgentContext) -> bool:
-        """需要完整的计划"""
-        return context.plan is not None
+        """需要至少有需求分析，计划是可选的（快速模式可能没有）"""
+        return context.requirements is not None
 
     def process(self, context: AgentContext) -> AgentContext:
         """生成 Python 代码"""
         self.logger.info("💻 生成 Python 代码...")
 
-        prompt = f"""
-严格按照以下规范生成高质量的 Python 代码:
+        # 构建提示词，根据可用的上下文信息
+        prompt_parts = [
+            "严格按照以下规范生成高质量的 Python 代码:",
+            "",
+            "原始 Java 代码:",
+            "```java",
+            context.java_code,
+            "```",
+            "",
+            "需求分析:",
+            json.dumps(context.requirements, indent=2, ensure_ascii=False),
+            ""
+        ]
 
-原始 Java 代码:
-```java
-{context.java_code}
-```
+        # 如果有架构设计，添加到 prompt
+        if context.architecture:
+            prompt_parts.extend([
+                "架构设计:",
+                json.dumps(context.architecture, indent=2, ensure_ascii=False),
+                ""
+            ])
 
-需求分析:
-{json.dumps(context.requirements, indent=2, ensure_ascii=False)}
+        # 如果有实现计划，添加到 prompt
+        if context.plan:
+            prompt_parts.extend([
+                "实现计划:",
+                json.dumps(context.plan, indent=2, ensure_ascii=False),
+                ""
+            ])
 
-架构设计:
-{json.dumps(context.architecture, indent=2, ensure_ascii=False)}
+        prompt_parts.extend([
+            "代码质量要求:",
+            "1. 完整实现所有方法体(不允许 pass 或 TODO)",
+            "2. 添加完整的类型注解(使用 typing 模块)",
+            "3. 编写详细的文档字符串(Google 风格)",
+            "4. 实现完整的异常处理",
+            "5. 使用 Pythonic 惯用法",
+            "6. 遵循 PEP 8 规范",
+            "7. 添加必要的注释",
+            "",
+            "只返回完整的 Python 代码,用 ```python 包裹:"
+        ])
 
-实现计划:
-{json.dumps(context.plan, indent=2, ensure_ascii=False)}
-
-代码质量要求:
-1. 完整实现所有方法体(不允许 pass 或 TODO)
-2. 添加完整的类型注解(使用 typing 模块)
-3. 编写详细的文档字符串(Google 风格)
-4. 实现完整的异常处理
-5. 使用 Pythonic 惯用法
-6. 遵循 PEP 8 规范
-7. 添加必要的注释
-
-只返回完整的 Python 代码,用 ```python 包裹:
-"""
+        prompt = "\n".join(prompt_parts)
 
         response = self.llm.complete(
             prompt,
