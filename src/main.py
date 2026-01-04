@@ -1,10 +1,13 @@
-"""
-Java to Python 迁移工具主程序
-整合所有模块,提供完整的迁移流程
-"""
+"""Java to Python 迁移工具主程序"""
 import argparse
 import sys
 from pathlib import Path
+
+# Windows 编码修复
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 from ast_parser import JavaASTParser
 from semantic_mapper import SemanticMapper
@@ -27,7 +30,7 @@ class JavaToPythonMigrator:
         self.validator = MigrationValidator()
 
     def log(self, message: str, level: str = "INFO"):
-        """日志输出 (保留向后兼容)"""
+        """日志输出"""
         if level == "ERROR":
             self.logger.error(message)
         elif level == "WARNING":
@@ -133,13 +136,11 @@ class JavaToPythonMigrator:
             是否成功
         """
         try:
-            # 读取 Java 代码
             with open(input_file, 'r', encoding='utf-8') as f:
                 java_code = f.read()
 
             self.logger.info(f"从文件读取 Java 代码: {input_file}")
 
-            # 执行迁移
             results = self.migrate(java_code, show_plan, validate)
 
             if not results['success']:
@@ -148,19 +149,16 @@ class JavaToPythonMigrator:
                     self.logger.error(f"  - {error}")
                 return False
 
-            # 保存 Python 代码
             if output_file:
                 with open(output_file, 'w', encoding='utf-8') as f:
                     f.write(results['python_code'])
                 self.logger.success(f"Python 代码已保存到: {output_file}")
             else:
-                # 如果没有指定输出文件,打印到控制台
                 print("\n" + "="*60)
                 print("生成的 Python 代码:")
                 print("="*60)
                 print(results['python_code'])
 
-            # 显示验证报告
             if validate and results['validation_report']:
                 self.validator.print_report(results['validation_report'])
 
@@ -248,33 +246,37 @@ def main():
         version='Java to Python Migration Tool v1.0.0'
     )
 
+    parser.add_argument(
+        '-f', '--force',
+        action='store_true',
+        help='强制覆盖已存在的输出文件'
+    )
+
     args = parser.parse_args()
 
-    # 验证输入文件
     input_path = Path(args.input)
     if not input_path.exists():
         print(f"错误: 输入文件不存在: {args.input}")
         sys.exit(1)
 
-    # 验证输出文件
     if args.output:
         output_path = Path(args.output)
-        if output_path.exists():
-            try:
-                response = input(f"输出文件已存在: {args.output}\n是否覆盖? (y/N): ")
-                if response.lower() != 'y':
-                    print("取消操作")
+        if output_path.exists() and not args.force:
+            if sys.stdin.isatty():
+                try:
+                    response = input(f"输出文件已存在: {args.output}\n是否覆盖? (y/N): ")
+                    if response.lower() != 'y':
+                        print("取消操作")
+                        sys.exit(0)
+                except KeyboardInterrupt:
+                    print("\n取消操作")
                     sys.exit(0)
-            except KeyboardInterrupt:
-                print("\n取消操作")
-                sys.exit(0)
+            else:
+                print(f"输出文件已存在，自动覆盖: {args.output}")
 
-    # 设置日志
     set_verbose(args.verbose)
 
-    # 使用 Agent 模式或传统模式
     if args.use_agents:
-        # Agent 编排模式
         from agents import MigrationOrchestrator
         from logger import get_logger
 
@@ -282,11 +284,9 @@ def main():
         orchestrator = MigrationOrchestrator()
         orchestrator.set_logger(logger)
 
-        # 读取 Java 代码
         with open(args.input, 'r', encoding='utf-8') as f:
             java_code = f.read()
 
-        # 执行迁移
         results = orchestrator.orchestrate_migration(
             java_code,
             validate=not args.no_validate
@@ -298,7 +298,6 @@ def main():
                 logger.error(f"  - {error}")
             sys.exit(1)
 
-        # 保存结果
         if args.output:
             with open(args.output, 'w', encoding='utf-8') as f:
                 f.write(results['python_code'])
@@ -311,15 +310,12 @@ def main():
 
         sys.exit(0)
 
-    # 传统模式
     migrator = JavaToPythonMigrator(verbose=args.verbose)
 
-    # 导出迁移计划
     if args.export_plan:
         from visualizer import MigrationVisualizer
         visualizer = MigrationVisualizer()
 
-        # 读取并解析 Java 代码
         with open(args.input, 'r', encoding='utf-8') as f:
             java_code = f.read()
 
@@ -337,7 +333,6 @@ def main():
                 print("支持的格式: .json, .md")
                 sys.exit(1)
 
-    # 执行迁移
     success = migrator.migrate_file(
         input_file=args.input,
         output_file=args.output,
@@ -345,7 +340,6 @@ def main():
         validate=not args.no_validate
     )
 
-    # 返回退出码
     sys.exit(0 if success else 1)
 
 

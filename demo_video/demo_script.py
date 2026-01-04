@@ -1,17 +1,12 @@
-"""
-产品演示视频 - 自动化演示脚本
-按照时间顺序执行各个演示部分
-"""
+"""产品演示视频 - 自动化演示脚本"""
 import sys
 import time
 from pathlib import Path
-import subprocess
 
-# 设置编码
 if sys.platform == 'win32':
-    import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
@@ -81,7 +76,6 @@ class DemoPresenter:
         """第三部分: 传统模式演示"""
         self.print_section("传统模式演示")
 
-        # 创建示例 Java 文件
         java_code = """public class Calculator {
     private static final double PI = 3.14159;
 
@@ -106,39 +100,12 @@ class DemoPresenter:
         self.pause(2)
 
         print("\n⚙️  执行迁移...")
-        print("$ python src/main.py -i demo_video/Calculator.java -o demo_video/Calculator.py -v")
+        print("$ python src/main.py -i demo_video/Calculator.java -o demo_video/Calculator.py -f")
         self.pause(1)
 
-        # 执行迁移
-        try:
-            result = subprocess.run(
-                [sys.executable, "src/main.py",
-                 "-i", str(demo_file),
-                 "-o", str(demo_file.parent / "Calculator.py"),
-                 "-v"],
-                cwd=self.project_root,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            if result.returncode == 0:
-                self.logger.success("✓ 迁移完成!")
-
-                # 显示生成的代码
-                python_file = demo_file.parent / "Calculator.py"
-                if python_file.exists():
-                    print("\n📄 生成的 Python 代码:")
-                    print("─" * 80)
-                    with open(python_file, 'r', encoding='utf-8') as f:
-                        print(f.read())
-                    print("─" * 80)
-            else:
-                print("输出:", result.stdout)
-                print("错误:", result.stderr)
-
-        except Exception as e:
-            self.logger.error(f"演示失败: {e}")
+        print("\n💡 提示: 请在另一个终端运行上述命令查看迁移过程")
+        print("    迁移完成后，生成的 Python 代码将保存在 demo_video/Calculator.py")
+        print("    使用 -f 参数强制覆盖已存在的文件")
 
         self.pause(3)
 
@@ -149,7 +116,6 @@ class DemoPresenter:
         print("🤖 启动 Costrict 6 阶段工作流...\n")
         self.pause(1)
 
-        # 模拟 Agent 工作流（快速版本）
         stages = [
             ("需求分析", "识别业务领域、核心功能", 1),
             ("架构设计", "设计 Python 类结构", 1),
@@ -164,7 +130,6 @@ class DemoPresenter:
             print(f"{'─' * 80}")
             print(f"📋 {desc}...")
 
-            # 模拟进度
             for j in range(duration):
                 time.sleep(0.5)
                 print(".", end="", flush=True)
@@ -311,7 +276,6 @@ def main():
     presenter = DemoPresenter()
 
     if args.part:
-        # 运行指定部分
         part_methods = {
             1: presenter.demo_part1_intro,
             2: presenter.demo_part2_features,
@@ -323,7 +287,6 @@ def main():
         }
         part_methods[args.part]()
     else:
-        # 运行完整演示
         presenter.run_full_demo()
 
 

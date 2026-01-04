@@ -548,3 +548,7 @@ diff test/emoji-java/src/main/java/com/vdurmont/emoji/ emoji_migration/emoji_pyt
 ## 许可证
 
 MIT License
+
+## 视频演示
+
+整个项目的视频演示在 https://drive.google.com/file/d/1XGWKf-b_bHWGf4AQ_ZKxmAzNRk1W5oE5/view?usp=sharing
